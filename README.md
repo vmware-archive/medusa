@@ -27,5 +27,3 @@ curl -s -H "Authorization: token API_KEY" 'https://api.github.com/orgs/carbonbla
 curl -s -H "Authorization: token API_KEY" 'https://api.github.com/orgs/carbonblack/members?type=private&per_page=100&role=admin' | jq '.[]'     
 
 curl -s -H "Authorization: token API_KEY" https://api.github.com/orgs/carbonblack/members
-
-test
