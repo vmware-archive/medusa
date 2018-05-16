@@ -2,7 +2,11 @@
 This project is a WIP!
 
 TODO:
-list of V1 features
+list of V2 features
+medusa invite <user_name>
+medusa remove <user_name>
+what else???
+
 set up CLI commands
 figure out how to handle API key
 implement main app code, with tests
