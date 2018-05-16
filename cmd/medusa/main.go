@@ -4,9 +4,10 @@ import (
 	"os"
 	"fmt"
 	"flag"
+	"bufio"
 	"path/filepath"
 
-	"github.com/BurntSushi/toml"	
+	//"github.com/BurntSushi/toml"	
 )
 
 type medusaConfig struct {
@@ -15,10 +16,6 @@ type medusaConfig struct {
 }
 
 func main() {
-	//Set the default org
-	setOrgCommand := flag.NewFlagSet("set_org", flag.ExitOnError)
-	orgNamePtr := setOrgCommand.String("name", "", "The default org name e.g. set_org -name carbonblack, (required)")
-
 	//The repos command
 	reposCommand := flag.NewFlagSet("repos", flag.ExitOnError)
 	reposTypePtr := reposCommand.String("type", "all", "Repo type all|private|public, defaults to all")
@@ -46,14 +43,13 @@ func main() {
 		flag.PrintDefaults()
 		os.Exit(1)
 	}
+	
 	switch os.Args[1] {
-	case "set_org":
-		setOrgCommand.Parse(os.Args[2:])
-		if *orgNamePtr == "" {
-			setOrgCommand.PrintDefaults()
-			os.Exit(1)
-		}
-		setOrg(*orgNamePtr)
+	case "init":
+		//prompt for the org and API key here
+		fmt.Println(confFileExists())
+		org := readInput()
+		fmt.Println(org)
 	case "repos":
 		reposCommand.Parse(os.Args[2:])
 		fmt.Println(*reposTypePtr)
@@ -74,20 +70,37 @@ func main() {
 	}	
 }
 
-func setOrg(org string){
+func readInput() string {
+	reader := bufio.NewReader(os.Stdin)
+	fmt.Print("Enter the name of your GitHub organization: ")
+	org, _ := reader.ReadString('\n')
+	fmt.Print(org)
+	return org
+}
+
+	
+
+
+func loadConfig(){
+}
+
+func confFileExists() (bool, error){
 	homeDir := os.Getenv("HOME")
 	dot_medusa := filepath.Join(homeDir, ".medusa")
-
+	exists := true
+	var existsError error
 	if _, err := os.Stat(dot_medusa); err != nil {
 		if os.IsNotExist(err) {
-			fmt.Printf("%s doesn't exist\n", dot_medusa)
+			exists = false
 		} else {
-			fmt.Printf("There was an error accessing %s\n", dot_medusa)
+			existsError = err
 		}
-	} else {
-		fmt.Printf("%s exists!\n", dot_medusa)
 	}
+	return exists, existsError
 }
+
+/*func init(org string){
+}*/
 
 func repos(){
 	fmt.Println("repos")
