@@ -5,20 +5,25 @@ import (
 	"fmt"
 	"flag"
 	"bufio"
+	"io/ioutil"
+	"strings"
 	"path/filepath"
 
-	//"github.com/BurntSushi/toml"	
+	"github.com/BurntSushi/toml"	
 )
 
-type medusaConfig struct {
+type MedusaConfig struct {
 	Org string
-	EncryptedApiKey string
+	ApiKey string
 }
 
 func main() {
+	//The init command
+	initCommandPtr := flag.Bool("init", false, "Set/initialize the Medusa configs e.g. org and API key")
+
 	//The repos command
 	reposCommand := flag.NewFlagSet("repos", flag.ExitOnError)
-	reposTypePtr := reposCommand.String("type", "all", "Repo type all|private|public, defaults to all")
+	repoTypePtr := reposCommand.String("type", "all", "Repo type all|private|public, defaults to all")
 	reposVerbosePtr := reposCommand.Bool("verbose", false, "Verbose mode i.e. full detais")
 	reposCsvPtr := reposCommand.Bool("csv", false, "Report results in CSV format")
 
@@ -43,53 +48,64 @@ func main() {
 		flag.PrintDefaults()
 		os.Exit(1)
 	}
+
+	homeDir := os.Getenv("HOME")
+	dot_medusa := filepath.Join(homeDir, ".medusa")
+	config := loadConfig(dot_medusa)
 	
 	switch os.Args[1] {
 	case "init":
-		//prompt for the org and API key here
-		fmt.Println(confFileExists())
-		org := readInput()
-		fmt.Println(org)
+		setConfig(dot_medusa)
 	case "repos":
 		reposCommand.Parse(os.Args[2:])
-		fmt.Println(*reposTypePtr)
-		fmt.Println(*reposVerbosePtr)
-		fmt.Println(*reposCsvPtr)		
+		repos(&config, repoTypePtr, reposVerbosePtr, reposCsvPtr)
 	case "repo":
 		repoCommand.Parse(os.Args[2:])
 		if *repoNamePtr == "" {
 			repoCommand.PrintDefaults()
 			os.Exit(1)
 		}
-		fmt.Println(*repoNamePtr)
-		fmt.Println(*repoVerbosePtr)
-		fmt.Println(*repoCsvPtr)		
+		repo(&config, repoNamePtr, repoVerbosePtr, repoCsvPtr)
 	default:
 		flag.PrintDefaults()
 		os.Exit(1)
 	}	
 }
 
-func readInput() string {
+func setConfig(confFilePath string) (MedusaConfig) {
 	reader := bufio.NewReader(os.Stdin)
 	fmt.Print("Enter the name of your GitHub organization: ")
 	org, _ := reader.ReadString('\n')
-	fmt.Print(org)
-	return org
+	org = strings.TrimSpace(org)
+	fmt.Print("Copy/paste your GitHub API key: ")
+	apiKey, _ := reader.ReadString('\n')
+	apiKey = strings.TrimSpace(apiKey)
+	confData := []byte(fmt.Sprintf("Org=\"%s\"\nApiKey=\"%s\"\n", org, apiKey))
+	err := ioutil.WriteFile(confFilePath, confData, 0644)
+	if err != nil {
+		panic(err)
+	}
+	return MedusaConfig{org, apiKey}
 }
 
-	
-
-
-func loadConfig(){
+func loadConfig(confFilePath string) (MedusaConfig) {
+	var config MedusaConfig
+	confExists, _ := confFileExists(confFilePath)
+	if confExists {
+		if _, err := toml.DecodeFile(confFilePath, &config); err != nil {
+			fmt.Println(err)
+			return config
+		}
+	} else {
+		config = setConfig(confFilePath)
+	}
+	return config
 }
 
-func confFileExists() (bool, error){
-	homeDir := os.Getenv("HOME")
-	dot_medusa := filepath.Join(homeDir, ".medusa")
+func confFileExists(confFilePath string) (bool, error){
 	exists := true
 	var existsError error
-	if _, err := os.Stat(dot_medusa); err != nil {
+	if _, err := os.Stat(confFilePath); err != nil {
 		if os.IsNotExist(err) {
 			exists = false
 		} else {
@@ -102,12 +118,12 @@ func confFileExists() (bool, error){
 /*func init(org string){
 }*/
 
-func repos(){
-	fmt.Println("repos")
+func repos(config *MedusaConfig, repoType *string, verbose *bool, csv *bool){
+	//TODO
 }	
 
-func repo(){
-	fmt.Println("repo")
+func repo(config *MedusaConfig, repoName *string, verbose *bool, csv *bool){
+	//TODO
 }	
 
 func users(){
