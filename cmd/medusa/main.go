@@ -9,17 +9,20 @@ import (
 	"strings"
 	"path/filepath"
 
+	"gopkg.in/resty.v1"
 	"github.com/BurntSushi/toml"	
 )
 
 type MedusaConfig struct {
 	Org string
 	ApiKey string
+	BaseOrgUrl string
 }
+
 
 func main() {
 	//The init command
-	initCommandPtr := flag.Bool("init", false, "Set/initialize the Medusa configs e.g. org and API key")
+	initCommandPtr := flag.Bool("init", true, "Set/initialize the Medusa configs e.g. org and API key")
 
 	//The repos command
 	reposCommand := flag.NewFlagSet("repos", flag.ExitOnError)
@@ -55,7 +58,10 @@ func main() {
 	
 	switch os.Args[1] {
 	case "init":
-		setConfig(dot_medusa)
+		fmt.Println(*initCommandPtr)
+		if *initCommandPtr == true {
+			setConfig(dot_medusa)
+		}
 	case "repos":
 		reposCommand.Parse(os.Args[2:])
 		repos(&config, repoTypePtr, reposVerbosePtr, reposCsvPtr)
@@ -85,7 +91,8 @@ func setConfig(confFilePath string) (MedusaConfig) {
 	if err != nil {
 		panic(err)
 	}
-	return MedusaConfig{org, apiKey}
+	BaseOrgUrl := fmt.Sprintf("https://api.github.com/orgs/%s", org)
+	return MedusaConfig{org, apiKey, BaseOrgUrl}
 }
 
 func loadConfig(confFilePath string) (MedusaConfig) {
@@ -93,12 +100,14 @@ func loadConfig(confFilePath string) (MedusaConfig) {
 	confExists, _ := confFileExists(confFilePath)
 	if confExists {
 		if _, err := toml.DecodeFile(confFilePath, &config); err != nil {
-			fmt.Println(err)
-			return config
+			panic(err)
 		}
 	} else {
 		config = setConfig(confFilePath)
 	}
+	baseOrgUrl := fmt.Sprintf("https://api.github.com/orgs/%s", config.Org)
+	config.BaseOrgUrl = baseOrgUrl
+	fmt.Println(fmt.Sprintf("config: %s", config))
 	return config
 }
 
@@ -115,11 +124,22 @@ func confFileExists(confFilePath string) (bool, error){
 	return exists, existsError
 }
 
-/*func init(org string){
-}*/
-
 func repos(config *MedusaConfig, repoType *string, verbose *bool, csv *bool){
-	//TODO
+	//curl -s -H "Authorization: token TOKEN" 'https://api.github.com/orgs/carbonblack/repos?type=private&per_page=100'
+	fmt.Println(config.BaseOrgUrl)
+	resp, err := resty.R().
+		SetQueryParams(map[string]string{
+		"type": *repoType,
+		"per_page": "100",
+	}).
+		SetHeader("Authorization", fmt.Sprintf("token %s", config.ApiKey)).
+		Get(fmt.Sprintf("%s/repos", config.BaseOrgUrl))
+	if (err != nil) {
+		panic(err)
+	}
+	fmt.Println(fmt.Sprintf("token %s", config.ApiKey))
+	fmt.Println(resp.StatusCode())
+	fmt.Println(resp.String())
 }	
 
 func repo(config *MedusaConfig, repoName *string, verbose *bool, csv *bool){
