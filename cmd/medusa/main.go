@@ -164,7 +164,7 @@ func repos(config *MedusaConfig, repoType *string, verbose *bool, csv *bool){
 		panic(err)
 	}
 	for _, r := range repos {
-		fmt.Printf("%s\n",r.Name)
+		fmt.Printf("%s\n\n",r.Name)
 	}
 }	
 
