@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"flag"
 	"bufio"
-	"io/ioutil"
 	"strings"
+	"io/ioutil"
+	"encoding/json"
 	"path/filepath"
 
 	"gopkg.in/resty.v1"
@@ -17,6 +18,24 @@ type MedusaConfig struct {
 	Org string
 	ApiKey string
 	BaseOrgUrl string
+}
+
+// A subset of https://developer.github.com/v3/repos/#list-organization-repositories
+type Repo struct {
+	Name    string `json:"name"`
+	Description string `json:"description"`
+	Url string `json:"url"`
+	Language string `json:"language"`
+	Private bool `json:private"`
+	Fork bool `json:fork"`
+}
+
+// A subset of https://developer.github.com/v3/users/#get-a-single-user
+type User struct {
+}
+
+// A subset of https://developer.github.com/v3/teams/#get-team
+type Team struct {
 }
 
 
@@ -137,9 +156,16 @@ func repos(config *MedusaConfig, repoType *string, verbose *bool, csv *bool){
 	if (err != nil) {
 		panic(err)
 	}
-	fmt.Println(fmt.Sprintf("token %s", config.ApiKey))
-	fmt.Println(resp.StatusCode())
-	fmt.Println(resp.String())
+	var repos []Repo
+	err = json.Unmarshal(resp.Body(), &repos)
+	//jd := json.NewDecoder(resp.Body())
+	//err = jd.Decode(&repos)
+	if err != nil {
+		panic(err)
+	}
+	for _, r := range repos {
+		fmt.Printf("%s\n",r.Name)
+	}
 }	
 
 func repo(config *MedusaConfig, repoName *string, verbose *bool, csv *bool){
