@@ -1,33 +1,34 @@
 package main
 
 import (
-	"os"
-	"fmt"
-	"flag"
 	"bufio"
-	"strings"
-	"io/ioutil"
 	"encoding/json"
+	"flag"
+	"fmt"
+	"io/ioutil"
+	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 
+	"github.com/BurntSushi/toml"
 	"gopkg.in/resty.v1"
-	"github.com/BurntSushi/toml"	
 )
 
 type MedusaConfig struct {
-	Org string
-	ApiKey string
+	Org        string
+	ApiKey     string
 	BaseOrgUrl string
 }
 
 // A subset of https://developer.github.com/v3/repos/#list-organization-repositories
 type Repo struct {
-	Name    string `json:"name"`
+	Name        string `json:"name"`
 	Description string `json:"description"`
-	Url string `json:"url"`
-	Language string `json:"language"`
-	Private bool `json:private"`
-	Fork bool `json:fork"`
+	Url         string `json:"url"`
+	Language    string `json:"language"`
+	Private     bool   `json:private"`
+	Fork        bool   `json:fork"`
 }
 
 // A subset of https://developer.github.com/v3/users/#get-a-single-user
@@ -37,7 +38,6 @@ type User struct {
 // A subset of https://developer.github.com/v3/teams/#get-team
 type Team struct {
 }
-
 
 func main() {
 	//The init command
@@ -64,7 +64,7 @@ func main() {
 	//medusa team|group <team_group_name> --filters
 	//medusa collaborators --filters
 	//medusa collaborator <collborator_name> --filters
-	
+
 	flag.Parse()
 	if len(os.Args) < 2 {
 		flag.PrintDefaults()
@@ -74,7 +74,7 @@ func main() {
 	homeDir := os.Getenv("HOME")
 	dot_medusa := filepath.Join(homeDir, ".medusa")
 	config := loadConfig(dot_medusa)
-	
+
 	switch os.Args[1] {
 	case "init":
 		fmt.Println(*initCommandPtr)
@@ -94,10 +94,10 @@ func main() {
 	default:
 		flag.PrintDefaults()
 		os.Exit(1)
-	}	
+	}
 }
 
-func setConfig(confFilePath string) (MedusaConfig) {
+func setConfig(confFilePath string) MedusaConfig {
 	reader := bufio.NewReader(os.Stdin)
 	fmt.Print("Enter the name of your GitHub organization: ")
 	org, _ := reader.ReadString('\n')
@@ -114,7 +114,7 @@ func setConfig(confFilePath string) (MedusaConfig) {
 	return MedusaConfig{org, apiKey, BaseOrgUrl}
 }
 
-func loadConfig(confFilePath string) (MedusaConfig) {
+func loadConfig(confFilePath string) MedusaConfig {
 	var config MedusaConfig
 	confExists, _ := confFileExists(confFilePath)
 	if confExists {
@@ -130,7 +130,7 @@ func loadConfig(confFilePath string) (MedusaConfig) {
 	return config
 }
 
-func confFileExists(confFilePath string) (bool, error){
+func confFileExists(confFilePath string) (bool, error) {
 	exists := true
 	var existsError error
 	if _, err := os.Stat(confFilePath); err != nil {
@@ -143,67 +143,86 @@ func confFileExists(confFilePath string) (bool, error){
 	return exists, existsError
 }
 
-func repos(config *MedusaConfig, repoType *string, verbose *bool, csv *bool){
+func paginator(config *MedusaConfig, url string, queryParams map[string]string) []*resty.Response {
+	queryParams["per_page"] = "100" //the max number of results per page
+	var responses []*resty.Response
+	page := 1
+	for {
+		queryParams["page"] = strconv.Itoa(page)
+		resp, err := resty.R().
+			SetQueryParams(queryParams).
+			SetHeader("Authorization", fmt.Sprintf("token %s", config.ApiKey)).
+			Get(url)
+		if err != nil {
+			panic(err)
+		}
+		fmt.Println(resp.Size)
+		responses = append(responses, resp)
+		page++
+	}
+}
+
+func repos(config *MedusaConfig, repoType *string, verbose *bool, csv *bool) {
 	//curl -s -H "Authorization: token TOKEN" 'https://api.github.com/orgs/carbonblack/repos?type=private&per_page=100'
-	fmt.Println(config.BaseOrgUrl)
-	resp, err := resty.R().
-		SetQueryParams(map[string]string{
+	queryParams := map[string]string{
 		"type": *repoType,
-		"per_page": "100",
-	}).
+	}
+	requestURL := fmt.Sprintf("%s/repos", config.BaseOrgUrl)
+	for _, resp := range paginator(config, requestURL, queryParams) {
+		var repos []Repo
+		err = json.Unmarshal(resp.Body(), &repos)
+		//jd := json.NewDecoder(resp.Body())
+		//err = jd.Decode(&repos)
+		if err != nil {
+			panic(err)
+		}
+
+	}
+	/*resp, err := resty.R().
+		SetQueryParams().
 		SetHeader("Authorization", fmt.Sprintf("token %s", config.ApiKey)).
 		Get(fmt.Sprintf("%s/repos", config.BaseOrgUrl))
-	if (err != nil) {
-		panic(err)
-	}
-	var repos []Repo
-	err = json.Unmarshal(resp.Body(), &repos)
-	//jd := json.NewDecoder(resp.Body())
-	//err = jd.Decode(&repos)
 	if err != nil {
 		panic(err)
 	}
+
 	for _, r := range repos {
-		fmt.Printf("%s\n\n",r.Name)
-	}
-}	
+		fmt.Printf("%s\n\n", r.Name)
+	}*/
+}
 
-func repo(config *MedusaConfig, repoName *string, verbose *bool, csv *bool){
+func repo(config *MedusaConfig, repoName *string, verbose *bool, csv *bool) {
 	//TODO
-}	
+}
 
-func users(){
+func users() {
 	fmt.Println("users")
-}	
+}
 
-func user(){
+func user() {
 	fmt.Println("user")
-}	
+}
 
-func teams(){
+func teams() {
 	fmt.Println("teams")
-}	
+}
 
-func team(){
+func team() {
 	fmt.Println("team")
-}	
+}
 
-func groups(){
+func groups() {
 	fmt.Println("groups")
-}	
+}
 
-func group(){
+func group() {
 	fmt.Println("group")
-}	
+}
 
-func collaborator(){
+func collaborator() {
 	fmt.Println("collaborator")
-}	
+}
 
-func collaborators(){
+func collaborators() {
 	fmt.Println("collaborators")
-}	
-
-
-
-
+}
