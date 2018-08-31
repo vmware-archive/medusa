@@ -15,6 +15,8 @@ import (
 	"gopkg.in/resty.v1"
 )
 
+const RESULT_PAGE_SIZE = 100 //The max # of paginated results in GitHub's REST API
+
 type MedusaConfig struct {
 	Org        string
 	ApiKey     string
@@ -143,8 +145,8 @@ func confFileExists(confFilePath string) (bool, error) {
 	return exists, existsError
 }
 
-func paginator(config *MedusaConfig, url string, queryParams map[string]string) []*resty.Response {
-	queryParams["per_page"] = "100" //the max number of results per page
+func paginator(config *MedusaConfig, url string, page_size int, queryParams map[string]string) []*resty.Response {
+	queryParams["per_page"] = strconv.Itoa(page_size)
 	var responses []*resty.Response
 	page := 1
 	for {
@@ -156,10 +158,14 @@ func paginator(config *MedusaConfig, url string, queryParams map[string]string) 
 		if err != nil {
 			panic(err)
 		}
-		fmt.Println(resp.Size)
 		responses = append(responses, resp)
+		//Break when we get an empty JSON list back
+		if resp.String() == "[]" {
+			break
+		}
 		page++
 	}
+	return responses
 }
 
 func repos(config *MedusaConfig, repoType *string, verbose *bool, csv *bool) {
@@ -168,27 +174,16 @@ func repos(config *MedusaConfig, repoType *string, verbose *bool, csv *bool) {
 		"type": *repoType,
 	}
 	requestURL := fmt.Sprintf("%s/repos", config.BaseOrgUrl)
-	for _, resp := range paginator(config, requestURL, queryParams) {
+	for _, resp := range paginator(config, requestURL, RESULT_PAGE_SIZE, queryParams) {
 		var repos []Repo
-		err = json.Unmarshal(resp.Body(), &repos)
-		//jd := json.NewDecoder(resp.Body())
-		//err = jd.Decode(&repos)
+		err := json.Unmarshal(resp.Body(), &repos)
 		if err != nil {
 			panic(err)
 		}
-
+		for _, r := range repos {
+			fmt.Printf("%s\n", r.Name)
+		}
 	}
-	/*resp, err := resty.R().
-		SetQueryParams().
-		SetHeader("Authorization", fmt.Sprintf("token %s", config.ApiKey)).
-		Get(fmt.Sprintf("%s/repos", config.BaseOrgUrl))
-	if err != nil {
-		panic(err)
-	}
-
-	for _, r := range repos {
-		fmt.Printf("%s\n\n", r.Name)
-	}*/
 }
 
 func repo(config *MedusaConfig, repoName *string, verbose *bool, csv *bool) {
