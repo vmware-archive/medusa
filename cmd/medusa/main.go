@@ -57,6 +57,13 @@ func main() {
 	repoVerbosePtr := repoCommand.Bool("verbose", false, "Verbose mode i.e. full detais")
 	repoCsvPtr := repoCommand.Bool("csv", false, "Report results in CSV format")
 
+	//The members command
+	membersCommand := flag.NewFlagSet("members", flag.ExitOnError)
+	memberTypePtr := membersCommand.String("type", "all", "Repo type all|admin|member, defaults to all, 'member' means non-admin")
+	membersVerbosePtr := membersCommand.Bool("verbose", false, "Verbose mode i.e. full detais")
+	members2fa := membersCommand.String("filter", "all", "2fa status all|enabled|disabled, defaults to all")
+	membersCsvPtr := membersCommand.Bool("csv", false, "Report results in CSV format")
+
 	//TODO
 	//setApiKey := flag.NewFlagSet("api_key", flag.ExitOnError)
 	//infoCommand := flag.NewFlagSet("info", flag.ExitOnError)
@@ -86,6 +93,9 @@ func main() {
 	case "repos":
 		reposCommand.Parse(os.Args[2:])
 		repos(&config, repoTypePtr, reposVerbosePtr, reposCsvPtr)
+	case "members":
+		reposCommand.Parse(os.Args[2:])
+		members(&config, memberTypePtr, members2fa, membersVerbosePtr, membersCsvPtr)
 	case "repo":
 		repoCommand.Parse(os.Args[2:])
 		if *repoNamePtr == "" {
@@ -168,8 +178,8 @@ func paginator(config *MedusaConfig, url string, page_size int, queryParams map[
 	return responses
 }
 
+//curl -s -H "Authorization: token TOKEN" 'https://api.github.com/orgs/carbonblack/repos?type=private&per_page=100'
 func repos(config *MedusaConfig, repoType *string, verbose *bool, csv *bool) {
-	//curl -s -H "Authorization: token TOKEN" 'https://api.github.com/orgs/carbonblack/repos?type=private&per_page=100'
 	queryParams := map[string]string{
 		"type": *repoType,
 	}
@@ -190,8 +200,9 @@ func repo(config *MedusaConfig, repoName *string, verbose *bool, csv *bool) {
 	//TODO
 }
 
-func users() {
-	fmt.Println("users")
+//curl -s -H "Authorization: token API_KEY" https://api.github.com/orgs/carbonblack/members
+func members(config *MedusaConfig, memberTypePtr *string, members2fa *string, verbose *bool, csv *bool) {
+	fmt.Println("Coming soon")
 }
 
 func user() {
